@@ -1,0 +1,37 @@
+# .github/workflows/build-and-scan.yml
+name: "Build and Scan with Wiz"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-scan:
+    name: "Wiz-cli Image Scan"
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the repository code
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      # 2. Build the Docker image from your Dockerfile
+      - name: Build the Docker image
+        run: docker build . --tag my-app:${{ github.sha }}
+
+      # 3. Download the Wiz command-line tool
+      - name: Download Wiz CLI
+        run: curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64 && chmod +x wizcli
+
+      # 4. Authenticate to Wiz using the secrets you stored
+      - name: Authenticate to Wiz
+        run: ./wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET"
+        env:
+          WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
+          WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
+
+      # 5. Run the scan on the image you just built
+      - name: Run wiz-cli docker image scan
+        run: ./wizcli docker scan --image my-app:${{ github.sha }} --policy "Default vulnerabilities policy"
