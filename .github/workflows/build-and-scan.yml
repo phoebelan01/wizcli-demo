@@ -37,6 +37,7 @@ jobs:
             --tag repo=${{ github.repository }} \
             --tag branch=${{ github.ref_name }} \
             --tag commit=${{ github.sha }} \
+            --detailed \
             --output "wiz-results.json,json,true" \
             --policy-hits-only \
             --log "wiz-scan.log"
