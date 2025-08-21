@@ -33,7 +33,6 @@ jobs:
         run: |
           ./wizcli docker scan \
             --image phoebe-app:${{ github.sha }} \
-            --details \
             --project 4a542528-0faa-5b4e-91ab-5ed521ee4d5a \
             --tag repo=${{ github.repository }} \
             --tag branch=${{ github.ref_name }} \
