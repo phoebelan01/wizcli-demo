@@ -37,7 +37,8 @@ jobs:
             --tag repo=${{ github.repository }} \
             --tag branch=${{ github.ref_name }} \
             --tag commit=${{ github.sha }} \
-            --output "wiz-results.json,json,false" \
+            --output "wiz-results.json,json,true" \
+            --policy-hits-only \
             --log "wiz-scan.log"
 
       # NEW STEP: Upload the generated report and logs as artifacts
