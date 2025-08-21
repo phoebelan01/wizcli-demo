@@ -1,5 +1,5 @@
 # .github/workflows/build-and-scan.yml
-name: "Build and Scan with Wiz"
+name: "Build and Scan with Wiz v2"
 
 on:
   push:
@@ -13,25 +13,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout the repository code
       - name: Check out repository
         uses: actions/checkout@v3
 
-      # 2. Build the Docker image from your Dockerfile
       - name: Build the Docker image
-        run: docker build . --tag my-app:${{ github.sha }}
+        run: docker build . --tag phoebe-app:${{ github.sha }}
 
-      # 3. Download the Wiz command-line tool
       - name: Download Wiz CLI
         run: curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64 && chmod +x wizcli
 
-      # 4. Authenticate to Wiz using the secrets you stored
       - name: Authenticate to Wiz
         run: ./wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET"
         env:
           WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
           WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
 
-      # 5. Run the scan on the image you just built
-      - name: Run wiz-cli docker image scan
-        run: ./wizcli docker scan --image my-app:${{ github.sha }} --policy "Default vulnerabilities policy"
+      # MODIFIED STEP: Added flags for better reporting and context
+      - name: Run Enhanced Wiz CLI docker image scan
+        run: |
+          ./wizcli docker scan \
+            --image phoebe-app:${{ github.sha }} \
+            --detailed \
+            ----policy-hits-only \
+            --project 4a542528-0faa-5b4e-91ab-5ed521ee4d5a \
+            --tag repo=${{ github.repository }} \
+            --tag branch=${{ github.ref_name }} \
+            --tag commit=${{ github.sha }} \
+            --output "wiz-results.json,json,true" \
+            --policy-hits-only \
+            --log "wiz-scan.log"
+
+      # NEW STEP: Upload the generated report and logs as artifacts
+      - name: Upload Scan Results and Logs
+        # This step will always run, even if the previous one fails, to ensure logs are saved
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiz-scan-artifacts
+          path: |
+            wiz-results.json
+            wiz-scan.log
