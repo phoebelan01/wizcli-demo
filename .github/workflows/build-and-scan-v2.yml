@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Build the Docker image
-        run: docker build . --tag my-app:${{ github.sha }}
+        run: docker build . --tag phoebe-app:${{ github.sha }}
 
       - name: Download Wiz CLI
         run: curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64 && chmod +x wizcli
@@ -32,9 +32,9 @@ jobs:
       - name: Run Enhanced Wiz CLI docker image scan
         run: |
           ./wizcli docker scan \
-            --image my-app:${{ github.sha }} \
-            --policy "Default vulnerabilities policy" \
-            --project "YOUR_WIZ_PROJECT" \
+            --image phoebe-app:${{ github.sha }} \
+            --details \
+            --project 4a542528-0faa-5b4e-91ab-5ed521ee4d5a \
             --tag repo=${{ github.repository }} \
             --tag branch=${{ github.ref_name }} \
             --tag commit=${{ github.sha }} \
