@@ -34,7 +34,6 @@ jobs:
             --image phoebe-app:${{ github.sha }} \
             --policy "Default policy" \
             --project "4a542528-0faa-5b4e-91ab-5ed521ee4d5a" \
-            --driver mountWithLayers \
             --tag repo=${{ github.repository }} \
             --tag branch=${{ github.ref_name }} \
             --tag commit=${{ github.sha }} \
