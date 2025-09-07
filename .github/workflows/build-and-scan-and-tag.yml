@@ -1,0 +1,63 @@
+# .github/workflows/build-and-scan.yml
+name: "Build and Scan with Wiz"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-scan:
+    name: "Wiz-cli Image Scan"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build the Docker image
+        run: docker build . --tag phoebe-app:${{ github.sha }}
+
+      - name: Download Wiz CLI
+        run: curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64 && chmod +x wizcli
+
+      - name: Authenticate to Wiz
+        run: ./wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET"
+        env:
+          WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
+          WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
+
+      - name: Run Enhanced Wiz CLI docker image scan
+        run: |
+          ./wizcli docker scan \
+            --image phoebe-app:${{ github.sha }} \
+            --policy "Default policy" \
+            --project "4a542528-0faa-5b4e-91ab-5ed521ee4d5a" \
+            --driver mountWithLayers \
+            --tag repo=${{ github.repository }} \
+            --tag branch=${{ github.ref_name }} \
+            --tag commit=${{ github.sha }} \
+            --output "wiz-results.json,json,true" \
+            --policy-hits-only \
+            --log "wiz-scan.log"
+
+      # NEW STEP: Tags the image in Wiz after a successful scan
+      - name: Tag Scanned Image in Wiz
+        if: success() # Ensures this only runs if the scan passed
+        run: |
+          ./wizcli docker tag \
+            --image phoebe-app:${{ github.sha }} \
+            --tag repo=${{ github.repository }} \
+            --tag branch=${{ github.ref_name }} \
+            --tag commit=${{ github.sha }}
+
+      - name: Upload Scan Results and Logs
+        # This step will always run, even if the scan step fails, to ensure logs are saved
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiz-scan-artifacts
+          path: |
+            wiz-results.json
+            wiz-scan.log
