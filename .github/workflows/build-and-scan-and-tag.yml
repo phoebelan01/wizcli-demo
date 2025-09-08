@@ -1,5 +1,5 @@
 # .github/workflows/build-and-scan.yml
-name: "Build and Scan with Wiz"
+name: "Build, Scan, Push, and Tag with Wiz"
 
 on:
   push:
@@ -7,17 +7,46 @@ on:
   pull_request:
     branches: [ main ]
 
+# Define environment variables for the workflow for easier management
+env:
+  ECR_REGISTRY: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com # <-- IMPORTANT: UPDATE THIS
+  ECR_REPOSITORY: phoebe-app
+  IMAGE_TAG: ${{ github.sha }}
+
 jobs:
-  build-and-scan:
-    name: "Wiz-cli Image Scan"
+  build-scan-and-push:
+    name: "Wiz-cli Image Scan and Push"
     runs-on: ubuntu-latest
+    permissions:
+      # Required for OIDC authentication with AWS
+      id-token: write
+      contents: read
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Build the Docker image
-        run: docker build . --tag phoebe-app:${{ github.sha }}
+      # Securely authenticate to AWS without long-lived keys
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/YourGitHubActionRole # <-- IMPORTANT: UPDATE THIS
+          aws-region: us-east-1 # <-- Update if your ECR is in another region
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # This action builds the image, pushes it to ECR, and outputs the digest
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          labels: |
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Download Wiz CLI
         run: curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64 && chmod +x wizcli
@@ -31,7 +60,7 @@ jobs:
       - name: Run Enhanced Wiz CLI docker image scan
         run: |
           ./wizcli docker scan \
-            --image phoebe-app:${{ github.sha }} \
+            --image "${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}@${{ steps.build-and-push.outputs.digest }}" \
             --project "4a542528-0faa-5b4e-91ab-5ed521ee4d5a" \
             --tag repo=${{ github.repository }} \
             --tag branch=${{ github.ref_name }} \
@@ -40,15 +69,15 @@ jobs:
             --policy-hits-only \
             --log "wiz-scan.log"
 
-      # NEW STEP: Tags the image in Wiz after a successful scan
       - name: Tag Scanned Image in Wiz
         if: success() # Ensures this only runs if the scan passed
         run: |
+          # Now we use the image name with the digest from the push step
           ./wizcli docker tag \
-            --image phoebe-app:${{ github.sha }}
+            --image "${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}@${{ steps.build-and-push.outputs.digest }}"
+
 
       - name: Upload Scan Results and Logs
-        # This step will always run, even if the scan step fails, to ensure logs are saved
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -56,3 +85,5 @@ jobs:
           path: |
             wiz-results.json
             wiz-scan.log
+
+
