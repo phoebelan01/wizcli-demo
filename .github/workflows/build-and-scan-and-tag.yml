@@ -45,10 +45,7 @@ jobs:
         if: success() # Ensures this only runs if the scan passed
         run: |
           ./wizcli docker tag \
-            --image phoebe-app:${{ github.sha }} \
-            --tag repo=${{ github.repository }} \
-            --tag branch=${{ github.ref_name }} \
-            --tag commit=${{ github.sha }}
+            --image phoebe-app:${{ github.sha }}
 
       - name: Upload Scan Results and Logs
         # This step will always run, even if the scan step fails, to ensure logs are saved
