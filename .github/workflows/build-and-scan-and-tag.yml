@@ -61,7 +61,7 @@ jobs:
         run: |
           ./wizcli docker scan \
             --image "${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}@${{ steps.build-and-push.outputs.digest }}" \
-            --project "4a542528-0faa-5b4e-91ab-5ed521ee4d5a" \
+            --project "<PROJECT-ID>" \ # <-- IMPORTANT: UPDATE THIS
             --tag repo=${{ github.repository }} \
             --tag branch=${{ github.ref_name }} \
             --tag commit=${{ github.sha }} \
